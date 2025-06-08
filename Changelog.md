@@ -4,7 +4,41 @@ Guayadeque Music Player
 Changelog
 =========
 
-0.7.1 (2025-05-XX)
+0.7.2 (2025-06-07)
+------------------
+###### Marduk, the cat
+
+### Features
+  * Added CoreAudio output device support in preferences (for MacOS).
+    Closes #65. Thanks to @barracuda156.
+
+### Enhancements
+  * Enhancements in reading some missing cue sheets metadata from the audio file.
+  * Make the wx qa component optional (some systems don't support it). Building without
+    it will disable the fatal exception report generation. Closes #63.
+  * Removed warnings for GCC 15.1.
+  * Added gstreamer-plugins-good as a dependency in the INSTALL.md.
+  * Added Wiki and Discussions links to the README.md.
+  * Updated Greek, Italian, Spanish and Catalan translations. Thanks to @filochard.
+
+### Bugfixes
+  * Playlist/queue updates to handle properly playlists with cue sheets and/or tracks
+    from multiple collections:
+    * Fixed missing updates to playcount and last play date (even if collection is closed).
+    * Fixed playlist reload after Guayadeque restart.
+  * Some important cue sheets related fixes:
+    * Fixed bug in the library scan where sometimes the length of the last track of 
+      cue sheets wasn't updating properly.
+      * If you have cue sheets, it's recommended that you rescan your collections.
+        You can also rescan only the directories containing the cue sheets.
+    * Fixed the enqueue of cue sheets getting duplicates and wrong track number and length.
+  * Fixed the "Set as Next Track" button in the playlist toolbar to handle properly
+    the tracks before the current track (enable them to be set as next track).
+  * Fixed build on case-insensitive filesystems causing compilation errors due wrongly
+    included headers caused by duplicated headers filenames.
+    Closes PR #64. Thanks to @barracuda156.
+
+0.7.1 (2025-05-14)
 ------------------
 
 ### Features
@@ -15,8 +49,9 @@ Changelog
 
 ### Enhancements
   * Adjusted the Podcast Editor dialog size.
-  * Added a Find Cover button in the Cover Editor to repeat the cover searching
+  * Added a Find Cover button in the Cover Editor to repeat the cover search
     (same as hit enter in the text controls).
+  * Updated French, Portuguese and Brazilian Portuguese translations.
 
 ### Bugfixes
   * Fixed the "Paste" context menu option, in the File Browser directory tree,
@@ -32,7 +67,7 @@ Changelog
 
 ### Bugfixes
   * Fixed a long time bug that causes playback skipping after around 20/30 minutes
-    running a long track or podcast.
+    playing a long track or podcast.
 
 ### Removed
   * Removed the no more functional Jamendo feature.
@@ -140,8 +175,8 @@ Changelog
     player information.
 
 ### Enhancements
-  * Added collate accents on media search.
-    The search function make use of Unicode Collation to match accented characters.
+  * Added collate accents on media search. The search function now make use of
+    Unicode Collation to match accented characters.
   * Preload the current track in the player at startup and some other situations.
   * Added C++11 random number generator support and set it as default.
     There's a new build option CXX11_RNG for srand() compatibility but it'll be
@@ -151,7 +186,7 @@ Changelog
     - The randomize action shuffles the playlist songs (it doesn't play songs in
       a random way) so it belongs to the playlist. As a result we have a cleaner
       player with fewer buttons.
-  * File Browser menu entry moved from "Sources" to "View".
+  * File Browser menu entry moved from Sources to View.
   * Some small context menus refactoring.
   * Updated French, Portuguese and Brazilian Portuguese translations.
   * General code cleanup and small refactorings.
@@ -169,7 +204,7 @@ Changelog
   * The playlist isn't cleared anymore if the stop button is clicked twice.
     If we want to clear the playlist, we have the Clear Playlist option
     (menu and playlist toolbar).
-  * Splitted README installation instructions to INSTALL.
+  * Splitted README.md installation instructions to INSTALL.md.
   * General code cleanup and small refactorings.
 
 ### Bugfixes
@@ -348,7 +383,7 @@ Changelog
   * Fixed audio output autoconfiguring option.
   * Fixed load tracks from command line or file manager.
   * Added mpris 2.2 support.
-  * Made Guayadeque Interface more clean.
+  * Made Guayadeque interface cleaner.
   * Removed bug that crashed Guayadeque when used del in a dynamic playlist.
   * Added TuneIn radio support.
   * Added option to rename podcast channel name.
@@ -446,6 +481,8 @@ Changelog
   * Added in Radio tab the now playing and stream format info.
   * Added in Radio tab the option to reorder columns.
   * Added option in Preferences -> Library tab to add playlists when doing a library scanning.
+  * Now playlist are created for found playlist doing a library scan.
+  * Added French translation thanks to Frombenny <frombenny@gmail.com>.
   * Added Thailand translation. Thanks to mr_hangman.
   * Added Norwegian translation. Thanks to jente_14.
   * Added icelandic translation. Thanks to Hreinsi.
@@ -455,8 +492,6 @@ Changelog
   * Implemented crossfading between tracks.
   * Read composer, comments from ape and m4a files added.
   * Added Lyric support to Ape files.
-  * Added French translation thanks to Frombenny <frombenny@gmail.com>.
-  * Now playlist are created for found playlist doing a library scan.
   * Added option to show full screen and to hide status bar.
   * Implemented live search. Now Enter sends current filtered results to playlist.
   * Added a composer listbox to the library tab.
@@ -485,7 +520,7 @@ Changelog
     instead of tracks.
   * Added two buttons in preferences to order the cover words.
   * The covers are now saved with the first word to detect covers.
-  * Added in last.fm panel the posibility to search for tracks in library.
+  * Added in last.fm panel the possibility to search for tracks in library.
   * The splash shows the revision number.
   * Double click over the track title selects the track.
   * Updated the no cover image. Thanks mrmotinjo.

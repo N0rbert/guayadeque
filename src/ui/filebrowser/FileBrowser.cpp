@@ -1201,31 +1201,31 @@ int guFilesListBox::GetTracksFromFiles( const wxArrayString &files, guTrackArray
 wxArrayString guFilesListBox::GetSelectedFiles( const bool recursive ) const
 {
     wxArrayString Files;
-    wxArrayInt Selection = GetSelectedItems( false );
-    int Count = Selection.Count();
-    if( Count )
+    wxArrayInt Selection = GetSelectedItems(false);
+    size_t Count = Selection.Count();
+    if (!Count)
+        return Files;
+
+    for (size_t Index = 0; Index < Count; Index++)
     {
-        for( int Index = 0; Index < Count; Index++ )
+        if (m_Files[Selection[Index]].m_Name == wxT(".."))
+            continue;
+
+        if (recursive && (m_Files[Selection[Index]].m_Type == guFILEITEM_TYPE_FOLDER))
         {
-            if( m_Files[ Selection[ Index ] ].m_Name != wxT( ".." ) )
+            //guAddDirItems(m_CurDir + m_Files[Selection[Index]].m_Name, Files);
+            guFileItemArray DirFiles;
+            if (GetPathSortedItems(m_CurDir + m_Files[Selection[Index]].m_Name,
+                                   &DirFiles, m_Order, m_OrderDesc, true))
             {
-                if( recursive && ( m_Files[ Selection[ Index ] ].m_Type == guFILEITEM_TYPE_FOLDER ) )
-                {
-                    //guAddDirItems( m_CurDir + m_Files[ Selection[ Index ] ].m_Name, Files );
-                    guFileItemArray DirFiles;
-                    if(GetPathSortedItems(m_CurDir + m_Files[Selection[Index]].m_Name,
-                                          &DirFiles, m_Order, m_OrderDesc, true) )
-                    {
-                        int FileIndex;
-                        int FileCount = DirFiles.Count();
-                        for( FileIndex = 0; FileIndex < FileCount; FileIndex++ )
-                            Files.Add( DirFiles[ FileIndex ].m_Name );
-                    }
-                }
-                else
-                    Files.Add( m_CurDir + m_Files[ Selection[ Index ] ].m_Name );
+                size_t FileIndex;
+                size_t FileCount = DirFiles.Count();
+                for (FileIndex = 0; FileIndex < FileCount; FileIndex++)
+                    Files.Add(DirFiles[FileIndex].m_Name);
             }
         }
+        else
+            Files.Add(m_CurDir + m_Files[Selection[Index]].m_Name);
     }
     return Files;
 }
@@ -1619,52 +1619,53 @@ void guFileBrowser::OnFolderDelete( wxCommandEvent &event )
 // -------------------------------------------------------------------------------- //
 void guFileBrowser::OnFolderCopy( wxCommandEvent &event )
 {
-    //guLogMessage( wxT( "OnFolderCopy" ) );
-    wxTheClipboard->UsePrimarySelection( false );
-    if( wxTheClipboard->Open() )
+    //guLogMessage(wxT("OnFolderCopy"));
+    wxTheClipboard->UsePrimarySelection(false);
+    if (!wxTheClipboard->Open())
     {
-        wxTheClipboard->Clear();
-        wxFileDataObject * FileObject = new wxFileDataObject();
-        //wxCustomDataObject * GnomeCopiedObject = new wxCustomDataObject( wxDataFormat( wxT( "x-special/gnome-copied-files" ) ) );
-        //wxCustomDataObject * UriListObject = new wxCustomDataObject( wxDataFormat( wxT( "text/uri-list" ) ) );
-        wxTextDataObject * TextObject = new wxTextDataObject();
-        wxDataObjectComposite * CompositeObject = new wxDataObjectComposite();
-
-        wxString Path = m_DirCtrl->GetPath();
-        Path.Replace( wxT( "#" ), wxT( "%23" ) );
-
-        TextObject->SetText( Path );
-        FileObject->AddFile( Path );
-
-        //Path = wxT( "file://" ) + Path;
-        //UriListObject->SetData( Path.Length(), Path.char_str() );
-
-        //Path = wxT( "copy\n" ) + Path;
-        //GnomeCopiedObject->SetData( Path.Length(), Path.char_str() );
-
-        //guLogMessage( wxT( "Copy: '%s'" ), Path.c_str() );
-
-        CompositeObject->Add( FileObject );
-        //CompositeObject->Add( GnomeCopiedObject );
-        //CompositeObject->Add( UriListObject );
-        CompositeObject->Add( TextObject );
-
-        //if( !wxTheClipboard->AddData( CustomObject ) )
-        if( !wxTheClipboard->AddData( CompositeObject ) )
-        //if( !wxTheClipboard->AddData( TextObject ) )
-        {
-            delete FileObject;
-            delete TextObject;
-            //delete GnomeCopiedObject;
-            //delete UriListObject;
-            delete CompositeObject;
-            guLogError( wxT( "Can't copy the folder to the clipboard" ) );
-        }
-        guLogMessage( wxT( "Copied the data to the clipboard..." ) );
-        wxTheClipboard->Close();
+        guLogError(wxT("Could not open the clipboard object"));
+        return;
     }
-    else
-        guLogError( wxT( "Could not open the clipboard object" ) );
+
+    wxTheClipboard->Clear();
+    wxFileDataObject * FileObject = new wxFileDataObject();
+    //wxCustomDataObject * GnomeCopiedObject = new wxCustomDataObject( wxDataFormat( wxT( "x-special/gnome-copied-files" ) ) );
+    //wxCustomDataObject * UriListObject = new wxCustomDataObject( wxDataFormat( wxT( "text/uri-list" ) ) );
+    wxTextDataObject * TextObject = new wxTextDataObject();
+    wxDataObjectComposite * CompositeObject = new wxDataObjectComposite();
+
+    wxString Path = m_DirCtrl->GetPath();
+    Path.Replace(wxT("#"), wxT("%23"));
+
+    TextObject->SetText(Path);
+    FileObject->AddFile(Path);
+
+    //Path = wxT("file://") + Path;
+    //UriListObject->SetData(Path.Length(), Path.char_str());
+
+    //Path = wxT("copy\n") + Path;
+    //GnomeCopiedObject->SetData(Path.Length(), Path.char_str());
+
+    //guLogMessage(wxT("Copy: '%s'"), Path.c_str());
+
+    CompositeObject->Add(FileObject);
+    //CompositeObject->Add(GnomeCopiedObject);
+    //CompositeObject->Add(UriListObject);
+    CompositeObject->Add(TextObject);
+
+    //if (!wxTheClipboard->AddData(CustomObject))
+    //if (!wxTheClipboard->AddData(TextObject))
+    if (!wxTheClipboard->AddData(CompositeObject))
+    {
+        delete FileObject;
+        delete TextObject;
+        //delete GnomeCopiedObject;
+        //delete UriListObject;
+        delete CompositeObject;
+        guLogError(wxT("Can't copy the folder to the clipboard"));
+    }
+    guLogMessage(wxT("Copied the data to the clipboard..."));
+    wxTheClipboard->Close();
 }
 
 // -------------------------------------------------------------------------------- //
@@ -1932,6 +1933,7 @@ void guFileBrowser::OnItemsPlay( wxCommandEvent &event )
 // -------------------------------------------------------------------------------- //
 void guFileBrowser::OnItemsEnqueue( wxCommandEvent &event )
 {
+    //wxArrayString Files = m_FilesCtrl->GetAllFiles( true );
     wxArrayString Files = m_FilesCtrl->GetSelectedFiles( true );
     if( Files.Count() )
         m_PlayerPanel->AddToPlayList( Files, true, event.GetId() - ID_FILESYSTEM_ITEMS_ENQUEUE_AFTER_ALL );

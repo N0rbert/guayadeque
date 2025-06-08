@@ -46,7 +46,7 @@ namespace Guayadeque {
 #define guPLAYLIST_TYPE_STATIC       0
 #define guPLAYLIST_TYPE_DYNAMIC      1
 
-    extern unsigned long DynPLDateOption2[];
+extern unsigned long DynPLDateOption2[];
 
 #define guTRACK_TYPE_STOP_HERE      0x80000000
 
@@ -695,6 +695,7 @@ namespace Guayadeque {
                           const int filterallow, const int filterdeny);
 
         int FindTrackFile(const wxString &filename, guTrack *track);
+        int FindTrackPath(wxString path, wxString fileName, wxString songName, guTrack *track);
 
         int FindTrackId(const int trackid, guTrack *track);
 
@@ -712,6 +713,8 @@ namespace Guayadeque {
 
         void UpdatePaths(const wxString &oldpath, const wxString &newpath);
     };
+
+    WX_DECLARE_OBJARRAY(guDbLibrary, guArrayDbLibrary);
 
     // -------------------------------------------------------------------------------- //
     // Array Functions

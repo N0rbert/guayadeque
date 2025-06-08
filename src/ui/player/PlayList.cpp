@@ -44,6 +44,21 @@
 namespace Guayadeque {
 
 // -------------------------------------------------------------------------------- //
+bool isTopPlayingEnabled(int curItem, wxArrayInt selectedItems)
+{
+    bool topPlayingEnabled = false;
+    int selCount = selectedItems.Count();
+    for (int index = 0; index < selCount; index++)
+        if (selectedItems[index] > (curItem + 1) || selectedItems[index] < curItem)
+        {
+            topPlayingEnabled = true;
+            break;
+        }
+    return topPlayingEnabled;
+}
+
+
+// -------------------------------------------------------------------------------- //
 // guPlayerPlayList - Playlist Panel
 // -------------------------------------------------------------------------------- //
 guPlayerPlayList::guPlayerPlayList( wxWindow * parent, guDbLibrary * db, wxAuiManager * manager ) :
@@ -52,16 +67,16 @@ guPlayerPlayList::guPlayerPlayList( wxWindow * parent, guDbLibrary * db, wxAuiMa
     MainSizer = new wxBoxSizer(wxVERTICAL);
 
     // Playlist
-    m_PlayListCtrl = new guPlayList(this, db, NULL, (guMainFrame *) parent);
+    m_PlayListCtrl = new guPlayList(this, db, nullptr, (guMainFrame *) parent);
     m_PlayListCtrl->SetPlayerPlayList(this);
 
     // Toolbar
     wxBoxSizer *BarSizer;
     BarSizer = new wxBoxSizer(wxHORIZONTAL);
 
-    m_TopPlayButton = new wxBitmapButton(this, wxID_ANY, guImage(guIMAGE_INDEX_tiny_start), wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW);
-    m_TopPlayButton->SetToolTip(_("Set as Next Track"));
-    BarSizer->Add(m_TopPlayButton, 0, wxALIGN_LEFT | wxLEFT, 2);
+    m_TopPlayingButton = new wxBitmapButton(this, wxID_ANY, guImage(guIMAGE_INDEX_tiny_start), wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW);
+    m_TopPlayingButton->SetToolTip(_("Set as Next Track"));
+    BarSizer->Add(m_TopPlayingButton, 0, wxALIGN_LEFT | wxLEFT, 2);
 
     m_TopButton = new wxBitmapButton(this, wxID_ANY, guImage(guIMAGE_INDEX_go_top), wxDefaultPosition, wxDefaultSize, wxBU_AUTODRAW);
     m_TopButton->SetToolTip(_("Move the selected tracks to the top"));
@@ -101,7 +116,7 @@ guPlayerPlayList::guPlayerPlayList( wxWindow * parent, guDbLibrary * db, wxAuiMa
     Layout();
     MainSizer->Fit(this);
 
-    m_TopPlayButton->Bind(wxEVT_BUTTON, &guPlayerPlayList::OnTopPlayBtnClick, this);
+    m_TopPlayingButton->Bind(wxEVT_BUTTON, &guPlayerPlayList::OnTopPlayingBtnClick, this);
     m_TopButton->Bind(wxEVT_BUTTON, &guPlayerPlayList::OnTopBtnClick, this);
     m_PrevButton->Bind(wxEVT_BUTTON, &guPlayerPlayList::OnPrevBtnClick, this);
     m_NextButton->Bind(wxEVT_BUTTON, &guPlayerPlayList::OnNextBtnClick, this);
@@ -114,7 +129,7 @@ guPlayerPlayList::guPlayerPlayList( wxWindow * parent, guDbLibrary * db, wxAuiMa
 // -------------------------------------------------------------------------------- //
 guPlayerPlayList::~guPlayerPlayList()
 {
-    m_TopPlayButton->Unbind(wxEVT_BUTTON, &guPlayerPlayList::OnTopPlayBtnClick, this);
+    m_TopPlayingButton->Unbind(wxEVT_BUTTON, &guPlayerPlayList::OnTopPlayingBtnClick, this);
     m_TopButton->Unbind(wxEVT_BUTTON, &guPlayerPlayList::OnTopBtnClick, this);
     m_PrevButton->Bind(wxEVT_BUTTON, &guPlayerPlayList::OnPrevBtnClick, this);
     m_NextButton->Bind(wxEVT_BUTTON, &guPlayerPlayList::OnNextBtnClick, this);
@@ -130,9 +145,9 @@ void guPlayerPlayList::SetPlayerPanel( guPlayerPanel * player )
 }
 
 // -------------------------------------------------------------------------------- //
-void guPlayerPlayList::OnTopPlayBtnClick(wxCommandEvent& event)
+void guPlayerPlayList::OnTopPlayingBtnClick(wxCommandEvent& event)
 {
-    m_PlayListCtrl->SetTopPlayTracks(event);
+    m_PlayListCtrl->SetTopPlayingTracks(event);
 }
 
 // -------------------------------------------------------------------------------- //
@@ -175,13 +190,13 @@ void guPlayerPlayList::OnShuffleBtnClick( wxCommandEvent &event )
 }
 
 // -------------------------------------------------------------------------------- //
-void guPlayerPlayList::UpdatePlayListToolbarState(int item, int curItem, int lastItem)
+void guPlayerPlayList::UpdatePlayListToolbarState(int item, int curItem, int lastItem, wxArrayInt selectedItems)
 {
-    bool topPlayEnabled = item > (curItem + 1);
+    bool topPlayingEnabled = isTopPlayingEnabled(curItem, selectedItems);
     bool topPrevEnabled = item != 0;
     bool nextBottomEnabled = item != lastItem;
 
-    m_TopPlayButton->Enable(topPlayEnabled);
+    m_TopPlayingButton->Enable(topPlayingEnabled);
 
     m_TopButton->Enable(topPrevEnabled);
     m_PrevButton->Enable(topPrevEnabled);
@@ -209,7 +224,7 @@ guPlayList::guPlayList(wxWindow * parent,
     m_TotalLen = 0;
     m_CurItem = wxNOT_FOUND;
     m_StartPlaying = false;
-    m_SavePlaylistTimer = NULL;
+    m_SavePlaylistTimer = nullptr;
     m_SysFontPointSize = wxSystemSettings::GetFont( wxSYS_SYSTEM_FONT ).GetPointSize();
 
     InsertColumn( new guListViewColumn( _( "Now Playing" ), 0 ) );
@@ -235,7 +250,7 @@ guPlayList::guPlayList(wxWindow * parent,
     Bind( wxEVT_MENU, &guPlayList::OnSearchClicked, this, ID_PLAYER_PLAYLIST_SEARCH );
     Bind( wxEVT_MENU, &guPlayList::OnCopyToClicked, this, ID_COPYTO_BASE, ID_COPYTO_BASE + guCOPYTO_MAXCOUNT );
     Bind( wxEVT_MENU, &guPlayList::OnStopAtEnd, this, ID_PLAYER_PLAYLIST_STOP_ATEND );
-    Bind( wxEVT_MENU, &guPlayList::SetTopPlayTracks, this, ID_PLAYER_PLAYLIST_SET_NEXT_TRACK );
+    Bind( wxEVT_MENU, &guPlayList::SetTopPlayingTracks, this, ID_PLAYER_PLAYLIST_SET_NEXT_TRACK );
     Bind( wxEVT_MENU, &guPlayList::OnSelectTrack, this, ID_PLAYER_PLAYLIST_SELECT_TITLE );
     Bind( wxEVT_MENU, &guPlayList::OnSelectArtist, this, ID_PLAYER_PLAYLIST_SELECT_ARTIST );
     Bind( wxEVT_MENU, &guPlayList::OnSelectAlbum, this, ID_PLAYER_PLAYLIST_SELECT_ALBUM );
@@ -298,7 +313,7 @@ guPlayList::~guPlayList()
     Unbind( wxEVT_MENU, &guPlayList::OnSearchClicked, this, ID_PLAYER_PLAYLIST_SEARCH );
     Unbind( wxEVT_MENU, &guPlayList::OnCopyToClicked, this, ID_COPYTO_BASE, ID_COPYTO_BASE + guCOPYTO_MAXCOUNT );
     Unbind( wxEVT_MENU, &guPlayList::OnStopAtEnd, this, ID_PLAYER_PLAYLIST_STOP_ATEND );
-    Unbind( wxEVT_MENU, &guPlayList::SetTopPlayTracks, this, ID_PLAYER_PLAYLIST_SET_NEXT_TRACK );
+    Unbind( wxEVT_MENU, &guPlayList::SetTopPlayingTracks, this, ID_PLAYER_PLAYLIST_SET_NEXT_TRACK );
     Unbind( wxEVT_MENU, &guPlayList::OnSelectTrack, this, ID_PLAYER_PLAYLIST_SELECT_TITLE );
     Unbind( wxEVT_MENU, &guPlayList::OnSelectArtist, this, ID_PLAYER_PLAYLIST_SELECT_ARTIST );
     Unbind( wxEVT_MENU, &guPlayList::OnSelectAlbum, this, ID_PLAYER_PLAYLIST_SELECT_ALBUM );
@@ -325,7 +340,7 @@ guPlayList::~guPlayList()
 }
 
 // -------------------------------------------------------------------------------- //
-void guPlayList::CreateAcceleratorTable( void )
+void guPlayList::CreateAcceleratorTable()
 {
     wxAcceleratorTable AccelTable;
     wxArrayInt AccelCmds;
@@ -370,7 +385,7 @@ bool inline guIsMagnatuneFile( const wxString &filename )
 }
 
 // -------------------------------------------------------------------------------- //
-void guPlayList::OnDropBegin( void )
+void guPlayList::OnDropBegin()
 {
     if( GetItemCount() )
     {
@@ -390,13 +405,15 @@ void guPlayList::OnDropBegin( void )
 void guPlayList::OnDropFile( const wxString &filename )
 {
     guLogMessage( wxT( "Dropping '%s'" ), filename.c_str() );
+    guTrack track;
+
     if (guIsMagnatuneFile(filename))
-        AddPlayListItem( wxT( "http:/" ) + filename, guINSERT_AFTER_CURRENT_NONE, wxNOT_FOUND );
+        AddPlayListItem(wxT("http:/") + filename, track, guINSERT_AFTER_CURRENT_NONE, wxNOT_FOUND);
     else if (guIsValidAudioFile(filename) ||
              guPlaylistFile::IsValidPlayList(filename) ||
              guCuePlaylistFile::IsValidFile(filename))
     {
-        AddPlayListItem( filename, guINSERT_AFTER_CURRENT_NONE, wxNOT_FOUND );
+        AddPlayListItem(filename, track, guINSERT_AFTER_CURRENT_NONE, wxNOT_FOUND);
     }
 }
 
@@ -408,7 +425,7 @@ void guPlayList::OnDropTracks( const guTrackArray * tracks )
 }
 
 // -------------------------------------------------------------------------------- //
-void guPlayList::OnDropEnd( void )
+void guPlayList::OnDropEnd()
 {
     m_DragOverItem = wxNOT_FOUND;
     // Once finished send the update guPlayList event to the guPlayList object
@@ -509,32 +526,8 @@ void guPlayList::RemoveSelected()
 //}
 
 // -------------------------------------------------------------------------------- //
-void guPlayList::MoveSelection( void )
+void guPlayList::SetDragOverItem(guLISTVIEW_NAVIGATION target, wxArrayInt Selection)
 {
-    MoveSelection(guLISTVIEW_NAVIGATION_ITEM);
-}
-
-// -------------------------------------------------------------------------------- //
-void guPlayList::MoveSelection(guLISTVIEW_NAVIGATION target)
-{
-    //guLogMessage( wxT( "guPlayList::MoveSelection %i" ), m_DragOverItem );
-
-    // Move the Selected Items to the DragOverItem and DragOverFirst
-    int     InsertPos;
-    int     cur_selected;
-    bool    CurItemSet = false;
-    guTrackArray MoveItems;
-    wxArrayInt   target_items;
-
-    // How Many elements to move
-    wxArrayInt Selection = GetSelectedItems(false);
-    int selectionCount = Selection.Count();
-    if (!selectionCount)
-        return;
-
-    wxMutexLocker Lock(m_ItemsMutex);
-
-    int lastItem = m_Items.Count() - 1;
     if (target == guLISTVIEW_NAVIGATION_TOP_PLAYING)
         m_DragOverItem = (m_CurItem == wxNOT_FOUND) ? 0 : m_CurItem + 1;
     else if (target == guLISTVIEW_NAVIGATION_TOP)
@@ -543,7 +536,8 @@ void guPlayList::MoveSelection(guLISTVIEW_NAVIGATION target)
         m_DragOverItem = Selection[0] - 1;
     else if (target == guLISTVIEW_NAVIGATION_NEXT)
     {
-        cur_selected = Selection[0];
+        int selectionCount = Selection.Count();
+        int cur_selected = Selection[0];
         if (selectionCount > 1)
         {
             for (int Index = 1; Index < selectionCount; Index++)
@@ -556,12 +550,43 @@ void guPlayList::MoveSelection(guLISTVIEW_NAVIGATION target)
         m_DragOverItem = cur_selected + 1;
     }
     else if (target == guLISTVIEW_NAVIGATION_BOTTOM)
+    {
+        int lastItem = m_Items.Count() - 1;
         m_DragOverItem = lastItem;
-    else if (target == guLISTVIEW_NAVIGATION_ITEM)
-    {  // Use incoming m_DragOverItem
     }
+    else if (target == guLISTVIEW_NAVIGATION_ITEM)
+    {  // Use current m_DragOverItem
+    }
+}
 
-    // Where is the Items to be moved
+// -------------------------------------------------------------------------------- //
+void guPlayList::MoveSelection()
+{
+    MoveSelection(guLISTVIEW_NAVIGATION_ITEM);
+}
+
+// -------------------------------------------------------------------------------- //
+void guPlayList::MoveSelection(guLISTVIEW_NAVIGATION target)
+{
+    //guLogMessage( wxT( "guPlayList::MoveSelection %i" ), m_DragOverItem );
+
+    // Move the Selected Items to the DragOverItem and DragOverFirst
+    int InsertPos;
+    bool CurItemSet = false;
+    guTrackArray MoveItems;
+    wxArrayInt   target_items;
+
+    // How Many elements to move
+    wxArrayInt Selection = GetSelectedItems(false);
+    int selectionCount = Selection.Count();
+    if (!selectionCount)
+        return;
+
+    wxMutexLocker Lock(m_ItemsMutex);
+
+    SetDragOverItem(target, Selection);
+
+    // Where are the items to be moved
     InsertPos = m_DragOverAfter ? m_DragOverItem + 1 : m_DragOverItem;
     // PrintItems(m_Items, InsertPos, Selection[0], m_CurItem);
 
@@ -571,7 +596,7 @@ void guPlayList::MoveSelection(guLISTVIEW_NAVIGATION target)
 
     // Remove the Items and move CurItem and InsertPos
     // We move from last (bigger) to first
-    for ( int Index = selectionCount - 1; Index >= 0; Index-- )
+    for (int Index = selectionCount - 1; Index >= 0; Index--)
     {
         // guLogMessage( wxT( "Index %i: CurItem: %i InsPos: %i" ), Index, m_CurItem, InsertPos );
         m_Items.RemoveAt( Selection[ Index ] );
@@ -601,20 +626,24 @@ void guPlayList::MoveSelection(guLISTVIEW_NAVIGATION target)
     // PrintItems( m_Items, InsertPos, Selection[ 0 ], m_CurItem );
     ClearSelectedItems();
     SetSelectedItems(target_items);
+
+    SetDragOverItem(target, Selection);
     UpdatePlaylistToolbar();
 
     m_DragOverItem = wxNOT_FOUND;
 }
 
 // -------------------------------------------------------------------------------- //
-void guPlayList::UpdatePlaylistToolbar(void)
+void guPlayList::UpdatePlaylistToolbar()
 {
     int lastItem = m_Items.Count() - 1;
-    m_PlayerPlayList->UpdatePlayListToolbarState(m_DragOverItem, m_CurItem, lastItem);
+    wxArrayInt selectedItems = GetSelectedItems( false );
+
+    m_PlayerPlayList->UpdatePlayListToolbarState(m_DragOverItem, m_CurItem, lastItem, selectedItems);
 }
 
 // -------------------------------------------------------------------------------- //
-void guPlayList::SetTopPlayTracks(wxCommandEvent &event)
+void guPlayList::SetTopPlayingTracks(wxCommandEvent &event)
 {
     m_DragOverAfter = false;
     MoveSelection(guLISTVIEW_NAVIGATION_TOP_PLAYING);
@@ -854,13 +883,13 @@ wxCoord guPlayList::OnMeasureItem( size_t n ) const
     dc.SetFont( Font );
 
     wxCoord y;
-    dc.GetTextExtent( wxT( "Hg" ), NULL, &y );
+    dc.GetTextExtent( wxT( "Hg" ), nullptr, &y );
     Height += y;
     self->m_SecondLineOffset = Height;
 
 //    Font.SetPointSize( m_SysFontPointSize - 3 );
 //    dc.SetFont( Font );
-//    dc.GetTextExtent( wxT( "Hg" ), NULL, &y );
+//    dc.GetTextExtent( wxT( "Hg" ), nullptr, &y );
     Height += y + 6;
 
     self->SetItemHeight( Height );
@@ -908,7 +937,7 @@ wxString guPlayList::OnGetItemText( const int row, const int col ) const
 }
 
 // -------------------------------------------------------------------------------- //
-void guPlayList::GetItemsList( void )
+void guPlayList::GetItemsList()
 {
 }
 
@@ -979,13 +1008,13 @@ void guPlayList::SetCurrent( int curitem, bool delold )
 }
 
 // -------------------------------------------------------------------------------- //
-int guPlayList::GetCurItem( void )
+int guPlayList::GetCurItem()
 {
     return m_CurItem;
 }
 
 // -------------------------------------------------------------------------------- //
-guTrack * guPlayList::GetCurrent( void )
+guTrack * guPlayList::GetCurrent()
 {
 //    if( ( CurItem == wxNOT_FOUND ) && Items.Count() )
 //        CurItem = 0;
@@ -1023,7 +1052,7 @@ guTrack * guPlayList::GetNext( const int playmode, const bool forceskip )
             return &m_Items[ m_CurItem ];
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 // -------------------------------------------------------------------------------- //
@@ -1055,7 +1084,7 @@ guTrack * guPlayList::GetPrev( const int playmode, const bool forceskip )
             return &m_Items[ m_CurItem ];
         }
     }
-    return NULL;
+    return nullptr;
 }
 
 // -------------------------------------------------------------------------------- //
@@ -1102,7 +1131,7 @@ guTrack * guPlayList::GetNextAlbum( const int playmode, const bool forceskip )
 //        }
     }
     m_CurItem = SaveCurItem;
-    return NULL;
+    return nullptr;
 }
 
 // -------------------------------------------------------------------------------- //
@@ -1161,7 +1190,7 @@ guTrack * guPlayList::GetPrevAlbum( const int playmode, const bool forceskip )
 //        }
     }
     m_CurItem = SaveCurItem;
-    return NULL;
+    return nullptr;
 }
 
 // -------------------------------------------------------------------------------- //
@@ -1170,11 +1199,11 @@ guTrack * guPlayList::GetItem( size_t item )
     size_t ItemsCount = m_Items.Count();
     if( ItemsCount && item < ItemsCount )
       return &m_Items[ item ];
-    return NULL;
+    return nullptr;
 }
 
 // -------------------------------------------------------------------------------- //
-long guPlayList::GetLength( void ) const
+long guPlayList::GetLength() const
 {
     return m_TotalLen;
 }
@@ -1194,6 +1223,7 @@ void guPlayList::ClearItems()
     m_CurItem = wxNOT_FOUND;
     m_TotalLen = 0;
     m_PendingLoadIds.Empty();
+    ClearItemsExtras();
     ClearSelectedItems();
     ReloadItems();
     //PlayerPanel->UpdateTotalLength();
@@ -1308,28 +1338,28 @@ wxString guPlayList::FindCoverFile( const wxString &dirname )
 }
 
 // -------------------------------------------------------------------------------- //
-void guPlayList::AddToPlayList( const guTrackArray &items, const bool deleteold, const int aftercurrent )
+int guPlayList::GetPlayListInsertPosition(const int afterCurrent)
 {
-    int InsertPosition = 0;
+    int insertPosition = 0;
 
-    wxMutexLocker Lock( m_ItemsMutex );
+    wxMutexLocker Lock(m_ItemsMutex);
 
-    switch( aftercurrent )
+    switch (afterCurrent)
     {
         case guINSERT_AFTER_CURRENT_NONE :
-            InsertPosition = m_Items.Count();
+            insertPosition = m_Items.Count();
             break;
 
         case guINSERT_AFTER_CURRENT_TRACK :
         {
-            if( m_CurItem != wxNOT_FOUND && m_CurItem < ( int ) m_Items.Count() )
+            if (m_CurItem != wxNOT_FOUND && m_CurItem < (int) m_Items.Count())
             {
-                wxString CurFileName = m_Items[ m_CurItem ].m_FileName;
-                InsertPosition = m_CurItem + 1;
-                while( ( InsertPosition < ( int ) m_Items.Count() ) &&
-                       m_Items[ InsertPosition ].m_FileName == CurFileName )
+                wxString CurFileName = m_Items[m_CurItem].m_FileName;
+                insertPosition = m_CurItem + 1;
+                while ((insertPosition < (int) m_Items.Count()) &&
+                       m_Items[insertPosition].m_FileName == CurFileName)
                 {
-                    InsertPosition++;
+                    insertPosition++;
                 }
             }
             break;
@@ -1337,16 +1367,16 @@ void guPlayList::AddToPlayList( const guTrackArray &items, const bool deleteold,
 
         case guINSERT_AFTER_CURRENT_ALBUM :
         {
-            if( m_CurItem != wxNOT_FOUND && m_CurItem < ( int ) m_Items.Count() )
+            if (m_CurItem != wxNOT_FOUND && m_CurItem < (int) m_Items.Count())
             {
-                int CurAlbumId = m_Items[ m_CurItem ].m_AlbumId;
-                InsertPosition = m_CurItem + 1;
-                if( CurAlbumId )
+                int CurAlbumId = m_Items[m_CurItem].m_AlbumId;
+                insertPosition = m_CurItem + 1;
+                if (CurAlbumId)
                 {
-                    while( ( InsertPosition < ( int ) m_Items.Count() ) &&
-                           m_Items[ InsertPosition ].m_AlbumId == CurAlbumId )
+                    while ((insertPosition < (int) m_Items.Count()) &&
+                           m_Items[insertPosition].m_AlbumId == CurAlbumId)
                     {
-                        InsertPosition++;
+                        insertPosition++;
                     }
                 }
             }
@@ -1355,16 +1385,16 @@ void guPlayList::AddToPlayList( const guTrackArray &items, const bool deleteold,
 
         case guINSERT_AFTER_CURRENT_ARTIST :
         {
-            if( m_CurItem != wxNOT_FOUND && m_CurItem < ( int ) m_Items.Count() )
+            if (m_CurItem != wxNOT_FOUND && m_CurItem < (int) m_Items.Count())
             {
-                int CurArtistId = m_Items[ m_CurItem ].m_ArtistId;
-                InsertPosition = m_CurItem + 1;
-                if( CurArtistId )
+                int CurArtistId = m_Items[m_CurItem].m_ArtistId;
+                insertPosition = m_CurItem + 1;
+                if (CurArtistId)
                 {
-                    while( ( InsertPosition < ( int ) m_Items.Count() ) &&
-                           m_Items[ InsertPosition ].m_ArtistId == CurArtistId )
+                    while ((insertPosition < (int) m_Items.Count()) &&
+                           m_Items[insertPosition].m_ArtistId == CurArtistId)
                     {
-                        InsertPosition++;
+                        insertPosition++;
                     }
                 }
             }
@@ -1372,210 +1402,180 @@ void guPlayList::AddToPlayList( const guTrackArray &items, const bool deleteold,
         }
     }
 
-    int Count = items.Count();
-    for( int Index = 0; Index < Count; Index++ )
+    return insertPosition;
+}
+
+// -------------------------------------------------------------------------------- //
+void guPlayList::AddToPlayList(const guTrackArray &items, const bool deleteOld, const int afterCurrent)
+{
+    int insertPosition = GetPlayListInsertPosition(afterCurrent);
+
+    int count = items.Count();
+    for (int index = 0; index < count; index++)
     {
-        AddItem( items[ Index ], InsertPosition + Index );
-        m_TotalLen += items[ Index ].m_Length;
+        AddItem(items[index], insertPosition + index);
+        m_TotalLen += items[index].m_Length;
     }
 
-    while( deleteold && ( m_CurItem != 0 ) && ( ( m_CurItem ) > m_MaxPlayedTracks ) )
+    while (deleteOld && (m_CurItem != 0) && ((m_CurItem) > m_MaxPlayedTracks))
     {
-        m_TotalLen -= m_Items[ 0 ].m_Length;
-        m_Items.RemoveAt( 0 );
+        m_TotalLen -= m_Items[0].m_Length;
+        m_Items.RemoveAt(0);
         m_CurItem--;
     }
     ReloadItems();
 
-    wxCommandEvent event( wxEVT_MENU, ID_PLAYER_PLAYLIST_START_SAVETIMER );
-    wxPostEvent( this, event );
+    wxCommandEvent event(wxEVT_MENU, ID_PLAYER_PLAYLIST_START_SAVETIMER);
+    wxPostEvent(this, event);
 }
 
 // -------------------------------------------------------------------------------- //
-void guPlayList::AddPlayListItem( const wxString &filename, const int aftercurrent, const int pos )
+void guPlayList::AddPlayListItem(const wxString &fileName, guTrack track, const int afterCurrent, const int pos)
 {
-    // Check if its a uri or a filename
-    wxString FileName;
-    guTrack Track;
+    wxString newFileName;
     guPodcastItem PodcastItem;
 
-    wxURI Uri( filename );
-    int InsertPosition = 0;
+    wxURI Uri(fileName);
 
-    switch( aftercurrent )
-    {
-        case guINSERT_AFTER_CURRENT_NONE :
-            InsertPosition = m_Items.Count();
-            break;
-
-        case guINSERT_AFTER_CURRENT_TRACK :
-        {
-            if( m_CurItem != wxNOT_FOUND && m_CurItem < ( int ) m_Items.Count() )
-            {
-                wxString CurFileName = m_Items[ m_CurItem ].m_FileName;
-                InsertPosition = m_CurItem + 1;
-                while( ( InsertPosition < ( int ) m_Items.Count() ) &&
-                       m_Items[ InsertPosition ].m_FileName == CurFileName )
-                {
-                    InsertPosition++;
-                }
-            }
-            break;
-        }
-
-        case guINSERT_AFTER_CURRENT_ALBUM :
-        {
-            if( m_CurItem != wxNOT_FOUND && m_CurItem < ( int ) m_Items.Count() )
-            {
-                int CurAlbumId = m_Items[ m_CurItem ].m_AlbumId;
-                InsertPosition = m_CurItem + 1;
-                if( CurAlbumId )
-                {
-                    while( ( InsertPosition < ( int ) m_Items.Count() ) &&
-                           m_Items[ InsertPosition ].m_AlbumId == CurAlbumId )
-                    {
-                        InsertPosition++;
-                    }
-                }
-            }
-            break;
-        }
-
-        case guINSERT_AFTER_CURRENT_ARTIST :
-        {
-            if( m_CurItem != wxNOT_FOUND && m_CurItem < ( int ) m_Items.Count() )
-            {
-                int CurArtistId = m_Items[ m_CurItem ].m_ArtistId;
-                InsertPosition = m_CurItem + 1;
-                if( CurArtistId )
-                {
-                    while( ( InsertPosition < ( int ) m_Items.Count() ) &&
-                           m_Items[ InsertPosition ].m_ArtistId == CurArtistId )
-                    {
-                        InsertPosition++;
-                    }
-                }
-            }
-            break;
-        }
-    }
-
+    int insertPosition = GetPlayListInsertPosition(afterCurrent);
     //guLogMessage( wxT( "Loading %i %i => %i '%s'" ), aftercurrent, pos, InsertPosition, filename.c_str() );
 
-    if( guCuePlaylistFile::IsValidFile( Uri.GetPath() ) )   // If its a cue playlist
+    if (guCuePlaylistFile::IsValidFile(Uri.GetPath()))   // If its a cue playlist
     {
         int InsertPos = wxMax( pos, 0 );
-        guCuePlaylistFile CuePlaylistFile( filename );
-        int Count = CuePlaylistFile.Count();
-        if( Count )
-        {
-            for( int Index = 0; Index < Count; Index++ )
-            {
-                guCuePlaylistItem &CueItem = CuePlaylistFile.GetItem( Index );
-                Track.m_SongId = wxNOT_FOUND;
-                Track.m_SongName = CueItem.m_Name;
-                Track.m_ArtistName = CueItem.m_ArtistName;
-                Track.m_Composer = CueItem.m_Composer;
-                Track.m_Comments = CueItem.m_Comment;
-                Track.m_AlbumId = 0;
-                Track.m_AlbumName = CueItem.m_AlbumName;
-                Track.m_Offset = CueItem.m_Start;
-                Track.m_Length = CueItem.m_Length;
-                Track.m_FileName = CueItem.m_TrackPath;
-                Track.m_Number = Index;
-                long Year;
-                if( CueItem.m_Year.ToLong( &Year ) )
-                    Track.m_Year = Year;
-                Track.m_Rating = wxNOT_FOUND;
+        guCuePlaylistFile CuePlaylistFile( fileName );
 
-                AddItem( Track, InsertPosition + InsertPos );
+        for (size_t i = 0; i < CuePlaylistFile.m_CueFiles.Count(); i++)
+            m_CuePaths.Add(CuePlaylistFile.m_CueFiles[i]);
+
+        int count = CuePlaylistFile.Count();
+        if (count)
+        {
+            for (int index = 0; index < count; index++)
+            {
+                guCuePlaylistItem &CueItem = CuePlaylistFile.GetItem( index );
+                wxString filePath = wxPathOnly(CueItem.m_TrackPath);
+                wxString fileNameOnly = CueItem.m_TrackPath.AfterLast(wxT('/'));
+
+                guDbLibrary *Db = m_MainFrame->GetTrackDb(filePath, track.m_MediaViewer);
+
+                // To find the m_SongId
+                Db->FindTrackPath(filePath, fileNameOnly, CueItem.m_Name, &track);
+
+                track.m_FileName = CueItem.m_TrackPath;
+                track.m_SongName = CueItem.m_Name;
+                track.m_ArtistName = CueItem.m_ArtistName;
+                track.m_Composer = CueItem.m_Composer;
+                track.m_Comments = CueItem.m_Comment;
+                track.m_AlbumId = 0;
+                track.m_AlbumName = CueItem.m_AlbumName;
+                track.m_Offset = CueItem.m_Start;
+                track.m_Length = CueItem.m_Length;
+                track.m_Number = index + 1;
+                long Year;
+                if (CueItem.m_Year.ToLong(&Year))
+                    track.m_Year = Year;
+                track.m_Rating = wxNOT_FOUND;
+
+                AddItem(track, insertPosition + InsertPos);
                 InsertPos++;
             }
         }
     }
-    else if( guPlaylistFile::IsValidPlayList( Uri.GetPath() ) )   // If its a playlist
+    else if (guPlaylistFile::IsValidPlayList(Uri.GetPath()))   // If its a playlist
     {
         int InsertPos = wxMax( pos, 0 );
-        guPlaylistFile PlayList( filename );
+        guPlaylistFile PlayList( fileName );
         int Count = PlayList.Count();
         if( Count )
         {
-            for( int Index = 0; Index < Count; Index++ )
-                AddPlayListItem( PlayList.GetItem( Index ).m_Location, aftercurrent, InsertPos++ );
+            for (int index = 0; index < Count; index++)
+                AddPlayListItem(PlayList.GetItem(index).m_Location, track, afterCurrent, InsertPos++);
         }
     }
-    else if( Uri.IsReference() )    // Its a file
+    else if (Uri.IsReference())    // Its a file
     {
-        if( filename.StartsWith( wxT( "file://" ) ) )
-            FileName = wxURI::Unescape( Uri.GetPath() );
+        if (fileName.StartsWith(wxT("file://")))
+            newFileName = wxURI::Unescape(Uri.GetPath());
         else
-            FileName = filename;
+            newFileName = fileName;
 
-        guLogMessage( wxT( "Loading '%s'" ), FileName.c_str() );
-        if( wxFileExists( FileName ) )
+        guLogMessage(wxT("Loading '%s'"), newFileName.c_str());
+        if (wxFileExists(newFileName))
         {
-            if( guIsValidAudioFile( FileName ) )
+            if (guIsValidAudioFile(newFileName))
             {
-                Track.m_FileName = FileName;
+                bool findResult;
+                wxString filePath = wxPathOnly(newFileName);
+                wxString fileNameOnly = newFileName.AfterLast(wxT('/'));
 
-                if( !m_Db->FindTrackFile( FileName, &Track ) )
+                track.m_FileName = newFileName;
+
+                guDbLibrary *Db = m_MainFrame->GetTrackDb(filePath, track.m_MediaViewer);
+
+                if (track.m_Offset)     // Cue sheet track
+                    findResult = Db->FindTrackPath(track.m_Path, fileNameOnly, track.m_SongName, &track);
+                else
+                    findResult = Db->FindTrackFile(newFileName, &track);
+
+                if (!findResult)
                 {
                     guDbPodcasts * DbPodcasts = m_MainFrame->GetPodcastsDb();
-                    if( DbPodcasts->GetPodcastItemFile( FileName, &PodcastItem ) )
+                    if (DbPodcasts->GetPodcastItemFile(newFileName, &PodcastItem))
                     {
-                        Track.m_Type = guTRACK_TYPE_PODCAST;
-                        Track.m_SongId = PodcastItem.m_Id;
-                        Track.m_SongName = PodcastItem.m_Title;
-                        Track.m_ArtistName = PodcastItem.m_Author;
-                        Track.m_AlbumId = PodcastItem.m_ChId;
-                        Track.m_AlbumName = PodcastItem.m_Channel;
-                        Track.m_Length = PodcastItem.m_Length;
-                        Track.m_PlayCount = PodcastItem.m_PlayCount;
-                        Track.m_Year = 0;
-                        Track.m_Rating = wxNOT_FOUND;
+                        track.m_Type = guTRACK_TYPE_PODCAST;
+                        track.m_SongId = PodcastItem.m_Id;
+                        track.m_SongName = PodcastItem.m_Title;
+                        track.m_ArtistName = PodcastItem.m_Author;
+                        track.m_AlbumId = PodcastItem.m_ChId;
+                        track.m_AlbumName = PodcastItem.m_Channel;
+                        track.m_Length = PodcastItem.m_Length;
+                        track.m_PlayCount = PodcastItem.m_PlayCount;
+                        track.m_Year = 0;
+                        track.m_Rating = wxNOT_FOUND;
                     }
                     else
                     {
                         //guLogMessage( wxT( "Reading tags from the file..." ) );
-                        if( Track.ReadFromFile( FileName ) )
-                            Track.m_Type = guTRACK_TYPE_NOTDB;
+                        if (track.ReadFromFile(newFileName))
+                            track.m_Type = guTRACK_TYPE_NOTDB;
                         else
-                            guLogError( wxT( "Could not read tags from file '%s'" ), FileName.c_str() );
+                            guLogError(wxT("Could not read tags from file '%s'"), newFileName.c_str());
                     }
                 }
 
-                m_TotalLen += Track.m_Length;
-                AddItem( Track, InsertPosition + wxMax( 0, pos ) );
+                m_TotalLen += track.m_Length;
+                AddItem(track, insertPosition + wxMax(0, pos));
             }
             else
-                guLogError( wxT( "Could not open the file '%s'" ), filename.c_str() );
+                guLogError(wxT("It is not an audio file '%s'"), fileName.c_str());
         }
-        else if( wxDirExists( FileName ) )
+        else if (wxDirExists(newFileName))
         {
             wxDir Dir;
-            wxString DirName = GetPathAddTrailSep(FileName);
+            wxString DirName = GetPathAddTrailSep(newFileName);
 
             int InsertPos = pos;
             Dir.Open( DirName );
             if( Dir.IsOpened() )
             {
-                if( Dir.GetFirst( &FileName, wxEmptyString, wxDIR_FILES | wxDIR_DIRS ) )
+                if (Dir.GetFirst(&newFileName, wxEmptyString, wxDIR_FILES | wxDIR_DIRS))
                 {
                     do {
-                        if( ( FileName[ 0 ] != '.' ) )
-                            AddPlayListItem( DirName + FileName, aftercurrent, InsertPos++ );
-                    } while( Dir.GetNext( &FileName ) );
+                        if ((newFileName[0] != '.'))
+                            AddPlayListItem(DirName + newFileName, track, afterCurrent, InsertPos++);
+                    } while (Dir.GetNext(&newFileName));
                 }
             }
         }
         else
-            guLogError( wxT( "File doesnt exist '%s'" ), filename.c_str() );
+            guLogError(wxT("File doesnt exist '%s'"), fileName.c_str());
     }
-    else if( guIsMagnatuneFile( filename ) )
+    else if (guIsMagnatuneFile(fileName))
     {
-        FileName = filename;
-        FileName.Replace( wxT( " " ), wxT( "%20" ) );
-        wxString SearchStr = FileName;
+        newFileName = fileName;
+        newFileName.Replace(wxT(" "), wxT("%20"));
+        wxString SearchStr = newFileName;
         int FoundPos;
         if( ( FoundPos = SearchStr.Find( wxT( "@stream.magnatune" ) ) ) != wxNOT_FOUND )
         {
@@ -1593,42 +1593,62 @@ void guPlayList::AddPlayListItem( const wxString &filename, const int aftercurre
         guLogMessage( wxT( "Searching for track '%s'" ), SearchStr.c_str() );
 
         guMediaViewer * MagnatuneMediaViewer = m_MainFrame->FindCollectionMediaViewer( wxT( "Magnatune" ) );
-        guMagnatuneLibrary * MagnatuneDb = NULL;
+        guMagnatuneLibrary * MagnatuneDb = nullptr;
         if( MagnatuneMediaViewer )
             MagnatuneDb = ( guMagnatuneLibrary * ) MagnatuneMediaViewer->GetDb();
         else if( m_PendingLoadIds.Index( wxT( "Magnatune" ) ) == wxNOT_FOUND )
             m_PendingLoadIds.Add( wxT( "Magnatune" ) );
 
-        if( !MagnatuneDb || ( MagnatuneDb->GetTrackId( SearchStr, &Track ) == wxNOT_FOUND ) )
+        if (!MagnatuneDb || (MagnatuneDb->GetTrackId(SearchStr, &track) == wxNOT_FOUND))
         {
-            Track.m_CoverId  = 0;
-            Track.m_SongName = FileName;
+            track.m_CoverId  = 0;
+            track.m_SongName = newFileName;
             //Track.m_AlbumName = FileName;
-            Track.m_Length   = 0;
-            Track.m_Year     = 0;
-            Track.m_Bitrate  = 0;
-            Track.m_Rating   = wxNOT_FOUND;
+            track.m_Length   = 0;
+            track.m_Year     = 0;
+            track.m_Bitrate  = 0;
+            track.m_Rating   = wxNOT_FOUND;
         }
-        Track.m_Type     = guTRACK_TYPE_MAGNATUNE;
-        Track.m_FileName = FileName;
-        AddItem( Track, InsertPosition + wxMax( 0, pos ) );
+        track.m_FileName = newFileName;
+        track.m_Type     = guTRACK_TYPE_MAGNATUNE;
+        AddItem(track, insertPosition + wxMax(0, pos));
     }
     else    // This should be a radiostation
     {
-        Track.m_Type     = guTRACK_TYPE_RADIOSTATION;
-        Track.m_CoverId  = 0;
-        Track.m_FileName = filename;
-        Track.m_SongName = filename;
+        track.m_Type     = guTRACK_TYPE_RADIOSTATION;
+        track.m_CoverId  = 0;
+        track.m_FileName = fileName;
+        track.m_SongName = fileName;
         //Track.m_AlbumName = FileName;
-        Track.m_Length   = 0;
-        Track.m_Year     = 0;
-        Track.m_Bitrate  = 0;
-        Track.m_Rating   = wxNOT_FOUND;
-        AddItem( Track, InsertPosition + wxMax( 0, pos ) );
+        track.m_Length   = 0;
+        track.m_Year     = 0;
+        track.m_Bitrate  = 0;
+        track.m_Rating   = wxNOT_FOUND;
+        AddItem(track, insertPosition + wxMax(0, pos));
     }
 
     wxCommandEvent event( wxEVT_MENU, ID_PLAYER_PLAYLIST_START_SAVETIMER );
     wxPostEvent( this, event );
+}
+
+// -------------------------------------------------------------------------------- //
+void guPlayList::RemoveCueFilesDuplicates()
+{
+    int count = m_CuePaths.Count();
+    if (!count)
+        return;
+
+    for (int iCue = 0; iCue < count; iCue++)
+    {
+        for (size_t iTrack = 0; iTrack < m_Items.Count(); iTrack++)
+        {
+            if (m_Items[iTrack].m_SongId != wxNOT_FOUND && m_Items[iTrack].m_FileName == m_CuePaths[iCue])
+            {
+                RemoveItem(iTrack);
+                break;
+            }
+        }
+    }
 }
 
 // -------------------------------------------------------------------------------- //
@@ -1685,8 +1705,8 @@ void guPlayList::CreateContextMenu( wxMenu * Menu ) const
         return;
     }
 
-    wxArrayInt SelectedItems = GetSelectedItems( false );
-    int SelCount = SelectedItems.Count();
+    wxArrayInt selectedItems = GetSelectedItems( false );
+    int selCount = selectedItems.Count();
 
     MenuItem = new wxMenuItem(
             Menu, ID_PLAYER_PLAYLIST_EDITLABELS,
@@ -1704,12 +1724,13 @@ void guPlayList::CreateContextMenu( wxMenu * Menu ) const
 
     Menu->AppendSeparator();
 
-    if( SelCount )
+    if (selCount)
     {
         MenuItem = new wxMenuItem( Menu, ID_PLAYER_PLAYLIST_SET_NEXT_TRACK,
                                 _( "Set as Next Track" ),
                                 _( "Move the selected tracks to be played next" ) );
         Menu->Append( MenuItem );
+        MenuItem->Enable(isTopPlayingEnabled(m_CurItem, selectedItems));
 
         wxMenu * RatingMenu = new wxMenu();
 
@@ -1736,7 +1757,7 @@ void guPlayList::CreateContextMenu( wxMenu * Menu ) const
     MenuItem->SetBitmap( guImage( guIMAGE_INDEX_tiny_search ) );
     Menu->Append( MenuItem );
 
-    if( SelCount == 1 )
+    if (selCount == 1)
     {
         wxMenu *     SubMenu;
         SubMenu = new wxMenu();
@@ -1782,7 +1803,7 @@ void guPlayList::CreateContextMenu( wxMenu * Menu ) const
     MenuItem->SetBitmap( guImage( guIMAGE_INDEX_doc_save ) );
     Menu->Append( MenuItem );
 
-    if( SelCount == 1 )
+    if (selCount == 1)
     {
         MenuItem = new wxMenuItem( Menu, ID_PLAYLIST_SMART_PLAYLIST, _( "Create Smart Playlist" ), _( "Create a smart playlist from this track" ) );
         Menu->Append( MenuItem );
@@ -1803,7 +1824,7 @@ void guPlayList::CreateContextMenu( wxMenu * Menu ) const
     MenuItem->SetBitmap( guImage( guIMAGE_INDEX_tiny_edit_clear ) );
     Menu->Append( MenuItem );
 
-    if( SelCount )
+    if (selCount)
     {
         MenuItem = new wxMenuItem( Menu, ID_PLAYER_PLAYLIST_REMOVE,
                             _( "Remove from Playlist" ),
@@ -1830,10 +1851,10 @@ void guPlayList::CreateContextMenu( wxMenu * Menu ) const
 
     m_MainFrame->CreateCopyToMenu( Menu );
 
-    if( SelCount == 1 && ( m_Items[ SelectedItems[ 0 ] ].m_Type < guTRACK_TYPE_RADIOSTATION ) )
-        AddOnlineLinksMenu( Menu );
+    if (selCount == 1 && (m_Items[selectedItems[0]].m_Type < guTRACK_TYPE_RADIOSTATION))
+        AddOnlineLinksMenu(Menu);
 
-    AddPlayListCommands( Menu, SelCount );
+    AddPlayListCommands(Menu, selCount);
 }
 
 // -------------------------------------------------------------------------------- //
@@ -2582,7 +2603,7 @@ wxString guPlayList::GetSearchText( int item ) const
 }
 
 // -------------------------------------------------------------------------------- //
-void guPlayList::StopAtEnd( void )
+void guPlayList::StopAtEnd()
 {
     int ItemToFlag = wxNOT_FOUND;
     wxArrayInt Selection = GetSelectedItems( false );
@@ -2613,7 +2634,7 @@ void guPlayList::StopAtEnd( void )
 }
 
 // -------------------------------------------------------------------------------- //
-void guPlayList::ClearStopAtEnd( void )
+void guPlayList::ClearStopAtEnd()
 {
     if( ( m_CurItem >= 0 ) && ( m_CurItem < ( int ) m_Items.Count() ) )
     {
@@ -2705,7 +2726,7 @@ void guPlayList::MediaViewerClosed( guMediaViewer * mediaviewer )
     {
         guTrack & Track = m_Items[ Index ];
         if( Track.m_MediaViewer == mediaviewer )
-            Track.m_MediaViewer = NULL;
+            Track.m_MediaViewer = nullptr;
     }
 }
 
@@ -2775,7 +2796,7 @@ void guPlayList::OnCreateSmartPlaylist( wxCommandEvent &event )
 }
 
 // -------------------------------------------------------------------------------- //
-void guPlayList::SavePlaylistTracks( void )
+void guPlayList::SavePlaylistTracks()
 {
     guTrackArray Tracks;
     guConfig * Config = ( guConfig * ) guConfig::Get();
@@ -2797,42 +2818,43 @@ void guPlayList::SavePlaylistTracks( void )
 }
 
 // -------------------------------------------------------------------------------- //
-void guPlayList::LoadPlaylistTracks( void )
+void guPlayList::LoadPlaylistTracks()
 {
-    wxBusyInfo BusyInfo( _( "Loading tracks. Please wait" ) );
+    wxBusyInfo BusyInfo(_("Loading tracks. Please wait"));
     wxTheApp->Yield();
 
-    guMainApp * MainApp = ( guMainApp * ) wxTheApp;
-    if( MainApp && MainApp->argc > 1 )
+    guMainApp *mainApp = (guMainApp *) wxTheApp;
+    if (mainApp && mainApp->argc > 1)
     {
-        int Count = MainApp->argc;
-        for( int Index = 1; Index < Count; Index++ )
+        guTrack track;
+        int count = mainApp->argc;
+        for (int index = 1; index < count; index++)
         {
-            //guLogMessage( wxT( "%u-%u %s" ), Index, MainApp->argc, MainApp->argv[ Index ] );
-            AddPlayListItem( MainApp->argv[ Index ], guINSERT_AFTER_CURRENT_NONE, wxNOT_FOUND );
+            //guLogMessage(wxT("%u-%u %s"), index, MainApp->argc, MainApp->argv[index]);
+            AddPlayListItem(mainApp->argv[index], track, guINSERT_AFTER_CURRENT_NONE, wxNOT_FOUND);
         }
         m_CurItem = wxNOT_FOUND;
         m_StartPlaying = true;
     }
     else
     {
-        guTrackArray Tracks;
-        guConfig * Config = ( guConfig * ) guConfig::Get();
-        int CurItem = Config->LoadPlaylistTracks( Tracks );
-        if( ( size_t ) m_CurItem > Tracks.Count() )
-            m_CurItem = wxNOT_FOUND;
+        guTrackArray tracks;
+        guConfig *config = (guConfig *) guConfig::Get();
+
+        int curItem = config->LoadPlaylistTracks( tracks );
+        int count = tracks.Count();
 
         wxTheApp->Yield();
 
-        int Count = Tracks.Count();
-        for (int Index = 0; Index < Count; Index++)
+        for (int index = 0; index < count; index++)
         {
-            if (Tracks[Index].m_Offset || (Tracks[Index].m_Type == guTRACK_TYPE_RADIOSTATION))
-                m_Items.Add(new guTrack(Tracks[Index]));
+            if ((tracks[index].m_Type == guTRACK_TYPE_RADIOSTATION))
+                m_Items.Add(new guTrack(tracks[index]));
             else
-                AddPlayListItem(Tracks[Index].m_FileName, guINSERT_AFTER_CURRENT_NONE, wxNOT_FOUND);
+                AddPlayListItem(tracks[index].m_FileName, tracks[index], guINSERT_AFTER_CURRENT_NONE, wxNOT_FOUND);
         }
-        m_CurItem = CurItem;
+
+        m_CurItem = curItem > count ? wxNOT_FOUND : curItem;
     }
 
     wxCommandEvent event(wxEVT_MENU, ID_PLAYER_PLAYLIST_UPDATELIST);

@@ -42,6 +42,7 @@ namespace Guayadeque {
     WX_DEFINE_OBJARRAY(guAlbumItems)
     WX_DEFINE_OBJARRAY(guCoverInfos)
     WX_DEFINE_OBJARRAY(guAS_SubmitInfoArray)
+    WX_DEFINE_OBJARRAY(guArrayDbLibrary)
 
 #define GU_CURRENT_DBVERSION    "21"
 
@@ -1681,7 +1682,7 @@ namespace Guayadeque {
             for (int Index = 0; Index < Count; Index++)
             {
                 guCuePlaylistItem &CueItem = CuePlaylistFile.GetItem(Index);
-                //guLogMessage( wxT( "Loading track %i '%s'" ), Index, CueItem.m_TrackPath.c_str() );
+                //guLogMessage(wxT("Loading track %i '%s' - %i"), Index, CueItem.m_TrackPath.c_str(), CueItem.m_Length);
 
                 if (wxFileExists(CueItem.m_TrackPath))
                 {
@@ -1699,8 +1700,9 @@ namespace Guayadeque {
                         if (TagInfo->Read())
                         {
                             guTrack CurTrack;
-                            CurTrack.m_Path = wxPathOnly(CueItem.m_TrackPath) + wxT("/");
+                            //guLogMessage(wxT("TagInfo %i '%s' - Len: %i"), Index, TagInfo->m_TrackName .c_str(), TagInfo->m_Length);
 
+                            CurTrack.m_Path = wxPathOnly(CueItem.m_TrackPath) + wxT("/");
                             CurTrack.m_GenreName = CueItem.m_Genre;
                             CurTrack.m_SongName = CueItem.m_Name;
                             CurTrack.m_ArtistName = CueItem.m_ArtistName;
@@ -1717,7 +1719,6 @@ namespace Guayadeque {
                                 CurTrack.m_Year = Year;
                             CurTrack.m_Bitrate = TagInfo->m_Bitrate;
 
-                            //
                             CurTrack.m_PathId = GetPathId(CurTrack.m_Path);
                             CurTrack.m_ComposerId = GetComposerId(CurTrack.m_Composer);
 
@@ -4820,6 +4821,33 @@ namespace Guayadeque {
                 wxString::Format(wxT(" WHERE song_path = '%s' AND song_filename = '%s' LIMIT 1;"),
                                  Path.c_str(),
                                  escape_query_str(filename.AfterLast('/')).c_str());
+        dbRes = ExecuteQuery(query);
+        if (dbRes.NextRow())
+        {
+            RetVal = dbRes.GetInt(0);
+            if (track)
+                FillTrackFromDb(track, &dbRes);
+        }
+        dbRes.Finalize();
+
+        return RetVal;
+    }
+
+    // -------------------------------------------------------------------------------- // m_Path, Track.m_FileName, Track.m_SongName
+    int guDbLibrary::FindTrackPath(wxString path, wxString fileName, wxString songName, guTrack *track)
+    {
+        wxString query;
+        wxSQLite3ResultSet dbRes;
+        int RetVal = 0;
+
+        AddPathTrailSep(path);
+        escape_query_str((&path));
+        escape_query_str(&fileName);
+        escape_query_str(&songName);
+
+        query = GU_TRACKS_QUERYSTR +
+                wxString::Format(wxT(" WHERE song_path = '%s' AND song_filename = '%s' AND song_name = '%s' LIMIT 1;"),
+                                 path.c_str(), fileName.c_str(), songName.c_str());
         dbRes = ExecuteQuery(query);
         if (dbRes.NextRow())
         {
